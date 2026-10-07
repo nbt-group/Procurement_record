@@ -172,4 +172,107 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const DB_URL = 'https://yvtujoueyotncbvdlgyf.supabase.co';
-    const DB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2dHVqb3VleW90bmNidmRsZ3lmIiwic
+    const DB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2dHVqb3VleW90bmNidmRsZ3lmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyNDAxOTQsImV4cCI6MjEwMzgxNjE5NH0.mmo23blJAMclVJ2MgMoGDNQiDuKw1_O3bWC3Mp2hdVU';
+    const db = window.supabase.createClient(DB_URL, DB_KEY);
+    
+    let isAdmin = false;
+    let allData = []; 
+    let recordModal;
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        recordModal = new bootstrap.Modal(document.getElementById('recordModal'));
+        
+        const { data: { session } } = await db.auth.getSession();
+        updateAuthUI(session);
+
+        db.auth.onAuthStateChange((_event, session) => {
+            updateAuthUI(session);
+        });
+        
+        fetchRecords();
+    });
+
+    function updateAuthUI(session) {
+        isAdmin = !!session;
+        const adminElements = document.querySelectorAll('.admin-only');
+        const loginBtn = document.getElementById('btnLogin');
+
+        adminElements.forEach(el => {
+            el.style.display = isAdmin ? (el.tagName === 'TH' || el.tagName === 'TD' ? 'table-cell' : 'inline-block') : 'none';
+        });
+        loginBtn.style.display = isAdmin ? 'none' : 'inline-block';
+        
+        if (allData.length > 0) renderTable(); 
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        
+        const { error } = await db.auth.signInWithPassword({ email, password });
+        if (error) {
+            alert("Login Failed: " + error.message);
+        } else {
+            document.getElementById('loginForm').reset();
+            bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
+        }
+    });
+
+    async function logoutAdmin() { 
+        await db.auth.signOut(); 
+        window.location.reload();
+    }
+
+    async function fetchRecords() {
+        const { data, error } = await db.from('procurement_records').select('*').order('id', { ascending: false });
+        
+        if (error) {
+            document.getElementById('tableBody').innerHTML = `<tr><td colspan="7" class="text-center text-danger fw-bold">❌ Error: ${error.message}</td></tr>`;
+            return;
+        }
+
+        allData = data || [];
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = ''; 
+        
+        if(allData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" class="text-center text-muted">No records found.</td></tr>`;
+            return;
+        }
+
+        allData.forEach(item => {
+            const brand = item.brand || '-';
+            const prevUnit = item.previous_unit || '-';
+            const prevText = item.previous_price ? `${prevUnit} unit @ RM${item.previous_price}` : 'No prev record';
+            const prevDateText = item.last_purchase_date ? `(Bought: ${item.last_purchase_date})` : '';
+            
+            const actionsHtml = isAdmin ? `
+                <td class="admin-only" style="display: table-cell;">
+                    <button class="btn btn-sm btn-primary mb-1 w-100" onclick="editRecord(${item.id})">Edit</button>
+                    <button class="btn btn-sm btn-outline-danger w-100" onclick="deleteRecord(${item.id})">Delete</button>
+                </td>
+            ` : '';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${item.item_name}</b><br><small class="text-muted">${brand}</small></td>
+                <td>${item.current_unit} unit<br>RM ${item.current_price}</td>
+                <td class="prev-data">${prevText}<br>${prevDateText}</td>
+                <td>${item.requested_by}<br><small class="text-muted">${item.platform}</small></td>
+                <td><small>Order: ${item.order_date || '-'}<br>Arrive: ${item.arrival_date || '-'}</small></td>
+                <td><span class="status-${item.status}">${item.status}</span></td>
+                ${actionsHtml}
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function openAddModal() {
+        document.getElementById('procurementForm').reset();
+        document.getElementById('recordId').value = ''; 
+        document.getElementById('modalTitle
