@@ -2,10 +2,10 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ] # 如果你的默认分支是 master，请改成 master
+    branches: [ main ] # 如果你的主分支是 master，请改成 master
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -16,8 +16,21 @@ jobs:
           sed -i 's|__SUPABASE_URL__|${{ secrets.SUPABASE_URL }}|g' index.html
           sed -i 's|__SUPABASE_KEY__|${{ secrets.SUPABASE_KEY }}|g' index.html
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
+          path: .
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      id: ${{ steps.deployment.outputs.id }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
