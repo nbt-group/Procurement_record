@@ -84,7 +84,7 @@
             </div>
             <div class="modal-body">
                 <form id="procurementForm">
-                    <input type="hidden" id="recordId"> <!-- Used to track if editing -->
+                    <input type="hidden" id="recordId">
                     
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -169,81 +169,13 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // GitHub Actions will replace these
     const SUPABASE_URL = 'https://yvtujoueyotncbvdlgyf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2dHVqb3VleW90bmNidmRsZ3lmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyNDAxOTQsImV4cCI6MjEwMzgxNjE5NH0.mmo23blJAMclVJ2MgMoGDNQiDuKw1_O3bWC3Mp2hdVU';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     
     let isAdmin = false;
-    let allData = []; // Store data globally for editing
+    let allData = []; 
     let recordModal;
 
     document.addEventListener("DOMContentLoaded", async () => {
-        recordModal = new bootstrap.Modal(document.getElementById('recordModal'));
-        const { data: { session } } = await supabase.auth.getSession();
-        updateAuthUI(session);
-
-        supabase.auth.onAuthStateChange((_event, session) => {
-            updateAuthUI(session);
-        });
-        fetchRecords();
-    });
-
-    function updateAuthUI(session) {
-        isAdmin = !!session;
-        const adminElements = document.querySelectorAll('.admin-only');
-        const loginBtn = document.getElementById('btnLogin');
-
-        adminElements.forEach(el => el.style.display = isAdmin ? (el.tagName === 'TH' || el.tagName === 'TD' ? 'table-cell' : 'inline-block') : 'none');
-        loginBtn.style.display = isAdmin ? 'none' : 'inline-block';
-        
-        renderTable(); 
-    }
-
-    document.getElementById('loginForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const email = document.getElementById('loginEmail').value;
-        const password = document.getElementById('loginPassword').value;
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) alert("Login Failed: " + error.message);
-        else {
-            document.getElementById('loginForm').reset();
-            bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
-        }
-    });
-
-    async function logout() { await supabase.auth.signOut(); }
-
-    async function fetchRecords() {
-        const { data, error } = await supabase.from('procurement_records').select('*').order('id', { ascending: false });
-        if (!error) {
-            allData = data;
-            renderTable();
-        }
-    }
-
-    function renderTable() {
-        const tbody = document.getElementById('tableBody');
-        tbody.innerHTML = ''; 
-        if(allData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" class="text-center">No records found.</td></tr>`;
-            return;
-        }
-
-        allData.forEach(item => {
-            // Formatting text
-            const prevText = item.previous_price ? `${item.previous_unit \vert{}\vert{} '-'} unit @ RM${item.previous_price}` : 'No prev record';
-            const prevDateText = item.last_purchase_date ? `(Bought: ${item.last_purchase_date})` : '';
-            
-            const actionsHtml = isAdmin ? `
-                <td class="admin-only">
-                    <button class="btn btn-sm btn-primary mb-1 w-100" onclick="editRecord(${item.id})">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger w-100" onclick="deleteRecord(${item.id})">Delete</button>
-                </td>
-            ` : '';
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><b>${item.item_name}</b><br><small class="text-muted">${item.brand || '-'}</small></td>
-                <td>${item.current_unit} unit<br>RM${item.current_price}</td>
-                <td class="prev-data">${prevText}<br>${
+        recordModal = new bootstrap
