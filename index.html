@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -145,15 +144,15 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // 使用完全不同的变量名 db，防止任何命名冲突
-    const DB_URL = 'https://yvtujoueyotncbvdlgyf.supabase.co';
-    const DB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2dHVqb3VleW90bmNidmRsZ3lmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyNDAxOTQsImV4cCI6MjEwMzgxNjE5NH0.mmo23blJAMclVJ2MgMoGDNQiDuKw1_O3bWC3Mp2hdVU';
+    // 使用占位符，由 GitHub Actions 自动替换
+    const DB_URL = '__SUPABASE_URL__';
+    const DB_KEY = '__SUPABASE_KEY__';
     const db = window.supabase.createClient(DB_URL, DB_KEY);
     
     let isAdmin = localStorage.getItem('isAdminUnlocked') === 'true';
     let allData = []; 
     let recordModal;
-    const ADMIN_PASSWORD = '123'; // 你可以在这里改密码
+    const ADMIN_PASSWORD = '123'; // 管理密码
 
     document.addEventListener("DOMContentLoaded", () => {
         recordModal = new bootstrap.Modal(document.getElementById('recordModal'));
