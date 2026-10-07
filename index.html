@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procurement Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { background-color: #f8f9fa; font-size: 0.9rem; }
+        .status-Pending { background-color: #ffc107; color: #000; font-weight: bold; padding: 3px 6px; border-radius: 4px; }
+        .status-Ordered { background-color: #0dcaf0; color: #000; font-weight: bold; padding: 3px 6px; border-radius: 4px; }
+        .status-Delivered { background-color: #198754; color: #fff; font-weight: bold; padding: 3px 6px; border-radius: 4px; }
+        .table-wrapper { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .admin-only { display: none; } 
+        .prev-data { font-size: 0.8rem; color: #6c757d; }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid mt-4 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>📦 Procurement Dashboard</h2>
+        <div>
+            <button class="btn btn-primary admin-only me-2" onclick="openAddModal()">+ Add Record</button>
+            <button class="btn btn-danger admin-only" id="btnLogout" onclick="logout()">Logout</button>
+            <button class="btn btn-outline-secondary" id="btnLogin" data-bs-toggle="modal" data-bs-target="#loginModal">Admin Login</button>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-wrapper table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Item & Brand</th>
+                    <th>Current Info</th>
+                    <th>Previous Info</th>
+                    <th>Requested By & Platform</th>
+                    <th>Dates (Order / Arrival)</th>
+                    <th>Status</th>
+                    <th class="admin-only">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="7" class="text-center">Loading data...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Admin Login Modal -->
+<div class="modal fade" id="loginModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Admin Login</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="loginForm">
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="loginEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-dark w-100">Login</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Record Modal -->
+<div class="modal fade" id="recordModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Add / Edit Record</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="procurementForm">
+                    <input type="hidden" id="recordId"> <!-- Used to track if editing -->
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Item Name *</label>
+                            <input type="text" class="form-control" id="itemName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Brand</label>
+                            <input type="text" class="form-control" id="brand">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3 p-2 border rounded bg-light">
+                        <h6>Current Purchase Info</h6>
+                        <div class="col-md-6">
+                            <label class="form-label">Current Price (RM) *</label>
+                            <input type="number" step="0.01" class="form-control" id="currentPrice" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Current Unit *</label>
+                            <input type="number" class="form-control" id="currentUnit" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3 p-2 border rounded">
+                        <h6>Previous Purchase Info (Optional)</h6>
+                        <div class="col-md-4">
+                            <label class="form-label">Prev Price (RM)</label>
+                            <input type="number" step="0.01" class="form-control" id="prevPrice">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Prev Unit</label>
+                            <input type="number" class="form-control" id="prevUnit">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Last Purchase Date</label>
+                            <input type="date" class="form-control" id="lastPurchaseDate">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Requested By *</label>
+                            <input type="text" class="form-control" id="requestedBy" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Platform</label>
+                            <select class="form-select" id="platform">
+                                <option value="Shopee">Shopee</option>
+                                <option value="Pinduoduo">Pinduoduo</option>
+                                <option value="Lazada">Lazada</option>
+                                <option value="Direct Supplier">Direct Supplier</option>
+                                <option value="Others">Others</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Order Date</label>
+                            <input type="date" class="form-control" id="orderDate">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Arrival Date</label>
+                            <input type="date" class="form-control" id="arrivalDate">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" id="status">
+                                <option value="Pending">Pending</option>
+                                <option value="Ordered">Ordered</option>
+                                <option value="Delivered">Delivered</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Save Record</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // GitHub Actions will replace these
+    const SUPABASE_URL = 'SUPABASE_URL_PLACEHOLDER';
+    const SUPABASE_ANON_KEY = 'SUPABASE_ANON_KEY_PLACEHOLDER';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    let isAdmin = false;
+    let allData = []; // Store data globally for editing
+    let recordModal;
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        recordModal = new bootstrap.Modal(document.getElementById('recordModal'));
+        const { data: { session } } = await supabase.auth.getSession();
+        updateAuthUI(session);
+
+        supabase.auth.onAuthStateChange((_event, session) => {
+            updateAuthUI(session);
+        });
+        fetchRecords();
+    });
+
+    function updateAuthUI(session) {
+        isAdmin = !!session;
+        const adminElements = document.querySelectorAll('.admin-only');
+        const loginBtn = document.getElementById('btnLogin');
+
+        adminElements.forEach(el => el.style.display = isAdmin ? (el.tagName === 'TH' || el.tagName === 'TD' ? 'table-cell' : 'inline-block') : 'none');
+        loginBtn.style.display = isAdmin ? 'none' : 'inline-block';
+        
+        renderTable(); 
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) alert("Login Failed: " + error.message);
+        else {
+            document.getElementById('loginForm').reset();
+            bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide();
+        }
+    });
+
+    async function logout() { await supabase.auth.signOut(); }
+
+    async function fetchRecords() {
+        const { data, error } = await supabase.from('procurement_records').select('*').order('id', { ascending: false });
+        if (!error) {
+            allData = data;
+            renderTable();
+        }
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = ''; 
+        if(allData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" class="text-center">No records found.</td></tr>`;
+            return;
+        }
+
+        allData.forEach(item => {
+            // Formatting text
+            const prevText = item.previous_price ? `${item.previous_unit \vert{}\vert{} '-'} unit @ RM${item.previous_price}` : 'No prev record';
+            const prevDateText = item.last_purchase_date ? `(Bought: ${item.last_purchase_date})` : '';
+            
+            const actionsHtml = isAdmin ? `
+                <td class="admin-only">
+                    <button class="btn btn-sm btn-primary mb-1 w-100" onclick="editRecord(${item.id})">Edit</button>
+                    <button class="btn btn-sm btn-outline-danger w-100" onclick="deleteRecord(${item.id})">Delete</button>
+                </td>
+            ` : '';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${item.item_name}</b><br><small class="text-muted">${item.brand || '-'}</small></td>
+                <td>${item.current_unit} unit<br>RM${item.current_price}</td>
+                <td class="prev-data">${prevText}<br>${
