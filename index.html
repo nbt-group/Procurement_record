@@ -11,15 +11,16 @@
         .status-Pending { background-color: #ffc107; color: #000; font-weight: bold; padding: 3px 6px; border-radius: 4px; }
         .status-Ordered { background-color: #0dcaf0; color: #000; font-weight: bold; padding: 3px 6px; border-radius: 4px; }
         .status-Delivered { background-color: #198754; color: #fff; font-weight: bold; padding: 3px 6px; border-radius: 4px; }
-        .table-wrapper { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .table-wrapper { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 30px; }
         .admin-only { display: none; } 
         .prev-data { font-size: 0.8rem; color: #6c757d; }
+        .section-title { font-weight: bold; margin-bottom: 15px; padding-bottom: 5px; border-bottom: 2px solid #ddd; }
     </style>
 </head>
 <body>
 
-<div class="container-fluid mt-4 px-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+<div class="container-fluid mt-4 px-4 pb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>📦 Procurement Dashboard</h2>
         <div>
             <button class="btn btn-primary admin-only me-2" onclick="openAddModal()">+ Add Record</button>
@@ -28,6 +29,8 @@
         </div>
     </div>
 
+    <!-- 🟡 Pending 表格 -->
+    <h4 class="section-title text-warning">🟡 Pending (待处理)</h4>
     <div class="table-wrapper table-responsive">
         <table class="table table-hover align-middle">
             <thead class="table-dark">
@@ -41,7 +44,49 @@
                     <th class="admin-only">Actions</th>
                 </tr>
             </thead>
-            <tbody id="tableBody">
+            <tbody id="tableBodyPending">
+                <tr><td colspan="7" class="text-center text-muted">Connecting to database...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 🔵 Ordered 表格 -->
+    <h4 class="section-title text-info">🔵 Ordered (已下单)</h4>
+    <div class="table-wrapper table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Item & Brand</th>
+                    <th>Current Info</th>
+                    <th>Previous Info</th>
+                    <th>Requested By & Platform</th>
+                    <th>Dates (Order / Arrival)</th>
+                    <th>Status</th>
+                    <th class="admin-only">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tableBodyOrdered">
+                <tr><td colspan="7" class="text-center text-muted">Connecting to database...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 🟢 Delivered 表格 -->
+    <h4 class="section-title text-success">🟢 Delivered (已送达)</h4>
+    <div class="table-wrapper table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Item & Brand</th>
+                    <th>Current Info</th>
+                    <th>Previous Info</th>
+                    <th>Requested By & Platform</th>
+                    <th>Dates (Order / Arrival)</th>
+                    <th>Status</th>
+                    <th class="admin-only">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tableBodyDelivered">
                 <tr><td colspan="7" class="text-center text-muted">Connecting to database...</td></tr>
             </tbody>
         </table>
@@ -184,7 +229,10 @@
             await fetchRecords();
         } catch (err) {
             console.error("Initialization Error:", err);
-            document.getElementById('tableBody').innerHTML = `<tr><td colspan="7" class="text-center text-danger fw-bold">❌ Connection Error: ${err.message}</td></tr>`;
+            const errorMsg = `<tr><td colspan="7" class="text-center text-danger fw-bold">❌ Error: ${err.message}</td></tr>`;
+            document.getElementById('tableBodyPending').innerHTML = errorMsg;
+            document.getElementById('tableBodyOrdered').innerHTML = errorMsg;
+            document.getElementById('tableBodyDelivered').innerHTML = errorMsg;
         }
     });
 
@@ -223,7 +271,10 @@
         const { data, error } = await db.from('procurement_records').select('*').order('id', { ascending: false });
         
         if (error) {
-            document.getElementById('tableBody').innerHTML = `<tr><td colspan="7" class="text-center text-danger fw-bold">❌ DB Error: ${error.message}</td></tr>`;
+            const errorMsg = `<tr><td colspan="7" class="text-center text-danger fw-bold">❌ DB Error: ${error.message}</td></tr>`;
+            document.getElementById('tableBodyPending').innerHTML = errorMsg;
+            document.getElementById('tableBodyOrdered').innerHTML = errorMsg;
+            document.getElementById('tableBodyDelivered').innerHTML = errorMsg;
             return;
         }
 
@@ -231,40 +282,76 @@
         renderTable();
     }
 
-    function renderTable() {
-        const tbody = document.getElementById('tableBody');
-        tbody.innerHTML = ''; 
+    // 统一生成表格行的函数
+    function createRowHTML(item) {
+        const brand = item.brand || '-';
+        const prevUnit = item.previous_unit || '-';
+        const prevText = item.previous_price ? `${prevUnit} unit @ RM${item.previous_price}` : 'No prev record';
+        const prevDateText = item.last_purchase_date ? `(Bought: ${item.last_purchase_date})` : '';
         
-        if(allData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" class="text-center text-muted">No records found. Data is empty.</td></tr>`;
-            return;
+        const actionsHtml = isAdmin ? `
+            <td class="admin-only" style="display: table-cell;">
+                <button class="btn btn-sm btn-primary mb-1 w-100" onclick="editRecord(${item.id})">Edit</button>
+                <button class="btn btn-sm btn-outline-danger w-100" onclick="deleteRecord(${item.id})">Delete</button>
+            </td>
+        ` : '';
+
+        return `
+            <td><b>${item.item_name}</b><br><small class="text-muted">${brand}</small></td>
+            <td>${item.current_unit} unit<br>RM ${item.current_price}</td>
+            <td class="prev-data">${prevText}<br>${prevDateText}</td>
+            <td>${item.requested_by}<br><small class="text-muted">${item.platform}</small></td>
+            <td><small>Order: ${item.order_date || '-'}<br>Arrive: ${item.arrival_date || '-'}</small></td>
+            <td><span class="status-${item.status}">${item.status}</span></td>
+            ${actionsHtml}
+        `;
+    }
+
+    // 分类渲染并填充独立表格
+    function renderTable() {
+        // 分离数据
+        const pendingData = allData.filter(item => item.status === 'Pending');
+        const orderedData = allData.filter(item => item.status === 'Ordered');
+        const deliveredData = allData.filter(item => item.status === 'Delivered');
+
+        // 渲染 Pending 表格
+        const tbodyPending = document.getElementById('tableBodyPending');
+        tbodyPending.innerHTML = '';
+        if(pendingData.length === 0) {
+            tbodyPending.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" class="text-center text-muted">No pending records.</td></tr>`;
+        } else {
+            pendingData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = createRowHTML(item);
+                tbodyPending.appendChild(tr);
+            });
         }
 
-        allData.forEach(item => {
-            const brand = item.brand || '-';
-            const prevUnit = item.previous_unit || '-';
-            const prevText = item.previous_price ? `${prevUnit} unit @ RM${item.previous_price}` : 'No prev record';
-            const prevDateText = item.last_purchase_date ? `(Bought: ${item.last_purchase_date})` : '';
-            
-            const actionsHtml = isAdmin ? `
-                <td class="admin-only" style="display: table-cell;">
-                    <button class="btn btn-sm btn-primary mb-1 w-100" onclick="editRecord(${item.id})">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger w-100" onclick="deleteRecord(${item.id})">Delete</button>
-                </td>
-            ` : '';
+        // 渲染 Ordered 表格
+        const tbodyOrdered = document.getElementById('tableBodyOrdered');
+        tbodyOrdered.innerHTML = '';
+        if(orderedData.length === 0) {
+            tbodyOrdered.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" class="text-center text-muted">No ordered records.</td></tr>`;
+        } else {
+            orderedData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = createRowHTML(item);
+                tbodyOrdered.appendChild(tr);
+            });
+        }
 
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><b>${item.item_name}</b><br><small class="text-muted">${brand}</small></td>
-                <td>${item.current_unit} unit<br>RM ${item.current_price}</td>
-                <td class="prev-data">${prevText}<br>${prevDateText}</td>
-                <td>${item.requested_by}<br><small class="text-muted">${item.platform}</small></td>
-                <td><small>Order: ${item.order_date || '-'}<br>Arrive: ${item.arrival_date || '-'}</small></td>
-                <td><span class="status-${item.status}">${item.status}</span></td>
-                ${actionsHtml}
-            `;
-            tbody.appendChild(tr);
-        });
+        // 渲染 Delivered 表格
+        const tbodyDelivered = document.getElementById('tableBodyDelivered');
+        tbodyDelivered.innerHTML = '';
+        if(deliveredData.length === 0) {
+            tbodyDelivered.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" class="text-center text-muted">No delivered records.</td></tr>`;
+        } else {
+            deliveredData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = createRowHTML(item);
+                tbodyDelivered.appendChild(tr);
+            });
+        }
     }
 
     function openAddModal() {
@@ -318,7 +405,6 @@
 
         let result;
         if (recordId) {
-            // 更新数据时，没有包含在那 5 个隐藏列，所以隐藏数据绝对安全，不会被覆盖！
             result = await db.from('procurement_records').update(payload).eq('id', recordId);
         } else {
             result = await db.from('procurement_records').insert([payload]);
